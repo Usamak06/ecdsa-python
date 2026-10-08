@@ -404,11 +404,14 @@ class Math:
         _add = cls._jacobianAdd
         _double = cls._jacobianDouble
 
-        # Montgomery ladder: always performs one add and one double per bit
+        # Montgomery ladder: always performs one add and one double per bit.
+        # Iterate over a fixed number of bits (the order's bit length) rather
+        # than n.bit_length(), so the add/double count does not depend on the
+        # magnitude of n. The leading all-zero bits are no-ops on the ladder.
         r0 = Point(0, 0, 1)
         r1 = Point(p.x, p.y, p.z)
 
-        for i in range(n.bit_length() - 1, -1, -1):
+        for i in range(N.bit_length() - 1, -1, -1):
             if (n >> i) & 1 == 0:
                 r1 = _add(r0, r1, A, P)
                 r0 = _double(r0, A, P)
