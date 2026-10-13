@@ -1,7 +1,7 @@
 from unittest.case import TestCase
 from hashlib import sha256, sha512
 from ellipticcurve import Ecdsa, PrivateKey, PublicKey, Signature
-from ellipticcurve.curve import secp256k1, prime256v1
+from ellipticcurve.curve import secp256k1, prime256v1, CurveFp
 from ellipticcurve.point import Point
 from ellipticcurve.math import Math
 from ellipticcurve.utils.binary import hexFromInt
@@ -105,6 +105,21 @@ class PublicKeyValidationTest(TestCase):
         zeroHex = "00" * (2 * secp256k1.length())
         with self.assertRaises(Exception):
             PublicKey.fromString(zeroHex, curve=secp256k1)
+
+    def testFromStringRejectsPointOutsidePrimeSubgroup(self):
+        # Toy curve y^2 = x^3 + 4 over F_19: group order 21 = 7 * 3.
+        # N = 7 is the prime subgroup order (generator (1, 9)); cofactor is 3.
+        # (0, 2) is on the curve but has order 3, so it is not in the order-N
+        # subgroup and a valid public key must not be accepted.
+        toy = CurveFp(A=0, B=4, P=19, N=7, Gx=1, Gy=9, name="toy19", oid=[1, 2, 3, 4, 5])
+        baseLength = 2 * toy.length()
+        offSubgroup = hexFromInt(0).zfill(baseLength) + hexFromInt(2).zfill(baseLength)
+        with self.assertRaises(Exception):
+            PublicKey.fromString(offSubgroup, curve=toy)
+        # the generator of the prime subgroup is still accepted
+        generator = hexFromInt(1).zfill(baseLength) + hexFromInt(9).zfill(baseLength)
+        key = PublicKey.fromString(generator, curve=toy)
+        self.assertEqual((key.point.x, key.point.y), (1, 9))
 
 
 class ForgeryAttemptTest(TestCase):
