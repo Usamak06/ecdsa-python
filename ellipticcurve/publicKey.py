@@ -79,6 +79,8 @@ class PublicKey:
             raise Exception("Public Key point is at infinity")
         if not curve.contains(p):
             raise Exception("Point ({x},{y}) is not valid for curve {name}".format(x=p.x, y=p.y, name=curve.name))
+        if curve.cofactorIsOne:
+            return publicKey
         # Compute N*P as (N-1)*P + P. Math.multiply reduces the scalar modulo N,
         # so multiply(p, N) would collapse to 0*P and always return infinity,
         # which defeats the order check on curves with cofactor > 1.

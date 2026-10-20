@@ -121,6 +121,26 @@ class PublicKeyValidationTest(TestCase):
         key = PublicKey.fromString(generator, curve=toy)
         self.assertEqual((key.point.x, key.point.y), (1, 9))
 
+    def testFromStringSkipsSubgroupMultiplyOnBuiltinCurves(self):
+        self.assertFalse(CurveFp(A=0, B=4, P=19, N=7, Gx=1, Gy=9, name="toy19", oid=[1, 2, 3, 4, 5]).cofactorIsOne)
+        originalMultiply = Math.multiply
+        calls = []
+
+        def countingMultiply(*args, **kwargs):
+            calls.append(1)
+            return originalMultiply(*args, **kwargs)
+
+        Math.multiply = countingMultiply
+        try:
+            for curve in [secp256k1, prime256v1]:
+                self.assertTrue(curve.cofactorIsOne)
+                baseLength = 2 * curve.length()
+                generator = hexFromInt(curve.G.x).zfill(baseLength) + hexFromInt(curve.G.y).zfill(baseLength)
+                PublicKey.fromString(generator, curve=curve)
+        finally:
+            Math.multiply = originalMultiply
+        self.assertEqual(calls, [])
+
 
 class ForgeryAttemptTest(TestCase):
 
