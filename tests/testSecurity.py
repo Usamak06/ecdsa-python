@@ -121,6 +121,20 @@ class PublicKeyValidationTest(TestCase):
         key = PublicKey.fromString(generator, curve=toy)
         self.assertEqual((key.point.x, key.point.y), (1, 9))
 
+    def testFromStringRejectsOrder2NPointOnCofactor2Curve(self):
+        # y^2 = x^3 + x + 1 over F_53 has order 58 = 29 * 2. (2, 8) has order 58,
+        # so N*(2, 8) is an order-2 point (x, 0) that looks like infinity.
+        toy = CurveFp(A=1, B=1, P=53, N=29, Gx=2, Gy=8, name="toy53", oid=[1, 2, 3, 4, 6])
+        baseLength = 2 * toy.length()
+        offSubgroup = hexFromInt(2).zfill(baseLength) + hexFromInt(8).zfill(baseLength)
+        with self.assertRaises(Exception):
+            PublicKey.fromString(offSubgroup, curve=toy)
+        # 2 * (2, 8) is in the order-N subgroup and is still accepted
+        double = Math.add(Point(2, 8), Point(2, 8), toy.A, toy.P)
+        inSubgroup = hexFromInt(double.x).zfill(baseLength) + hexFromInt(double.y).zfill(baseLength)
+        key = PublicKey.fromString(inSubgroup, curve=toy)
+        self.assertEqual((key.point.x, key.point.y), (double.x, double.y))
+
     def testFromStringSkipsSubgroupMultiplyOnBuiltinCurves(self):
         self.assertFalse(CurveFp(A=0, B=4, P=19, N=7, Gx=1, Gy=9, name="toy19", oid=[1, 2, 3, 4, 5]).cofactorIsOne)
         originalMultiply = Math.multiply
